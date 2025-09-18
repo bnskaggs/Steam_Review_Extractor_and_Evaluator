@@ -8,7 +8,6 @@ import sys
 import time
 from dataclasses import dataclass
 from typing import Iterable, List, Optional
-from urllib.parse import quote_plus
 
 import requests
 from requests import Response
@@ -116,7 +115,7 @@ class SteamReviewExtractor:
         params = dict(DEFAULT_REQUEST_PARAMS)
         params.update({
             "language": self.language,
-            "cursor": quote_plus(cursor),
+            "cursor": cursor,
         })
 
         for attempt in range(1, self.retries + 1):
