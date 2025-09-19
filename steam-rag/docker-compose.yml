@@ -1,6 +1,9 @@
+
+=======
 services:
   postgres:
     image: pgvector/pgvector:pg16
+
     container_name: steam_rag_db
     restart: unless-stopped
     environment:
