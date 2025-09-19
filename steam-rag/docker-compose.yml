@@ -1,8 +1,9 @@
-version: "3.9"
 
+=======
 services:
   postgres:
-    image: ghcr.io/pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg16
+
     container_name: steam_rag_db
     restart: unless-stopped
     environment:

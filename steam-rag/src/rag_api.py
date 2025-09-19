@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+
 from typing import List, Optional
+
 
 try:  # pragma: no cover - fallback for offline tests
     from fastapi import Depends, FastAPI, HTTPException, Query
@@ -137,7 +139,9 @@ def _unwrap_query(value):
 
 
 @app.post("/search", response_model=SearchResponse)
+
 def search_reviews(request: SearchRequest, db: Database = Depends(get_db)):
+
     hits = semantic_search(
         query=request.query,
         app_id=request.app_id,
@@ -184,6 +188,8 @@ def _generate_answer(query: str, snippets: list[dict], date_range: tuple[datetim
 
 @app.post("/ask", response_model=AskResponse)
 def ask_reviews(request: AskRequest, db: Database = Depends(get_db)):
+
+
     hits = semantic_search(
         query=request.query,
         app_id=request.app_id,
@@ -212,7 +218,9 @@ def counts_endpoint(
     date_end: datetime | None = Query(default=None),
     min_helpful: int = Query(default=0),
     group_by: str | None = Query(default=None, pattern="^(month)?$"),
+
     db: Database = Depends(get_db),
+
 ):
     topic = _unwrap_query(topic)
     date_start = _unwrap_query(date_start)
