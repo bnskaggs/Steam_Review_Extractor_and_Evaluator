@@ -6,7 +6,6 @@ from datetime import datetime
 
 from typing import List, Optional
 
-
 try:  # pragma: no cover - fallback for offline tests
     from fastapi import Depends, FastAPI, HTTPException, Query
     from fastapi.middleware.cors import CORSMiddleware

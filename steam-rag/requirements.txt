@@ -8,7 +8,6 @@ openai==1.23.6
 
 httpx<0.28
 
-
 numpy==1.26.4
 sentence-transformers==2.7.0
 scikit-learn==1.4.2

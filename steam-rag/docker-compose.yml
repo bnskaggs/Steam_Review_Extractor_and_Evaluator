@@ -1,22 +1,24 @@
 
-=======
 services:
   postgres:
-    image: pgvector/pgvector:pg16
-
+    image: ghcr.io/pgvector/pgvector:pg16
     container_name: steam_rag_db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: steam_rag
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=steam_rag
+
+
+
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./src/schema.sql:/docker-entrypoint-initdb.d/00-schema.sql:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,3 +26,5 @@ services:
 
 volumes:
   pgdata:
+    driver: local
+
