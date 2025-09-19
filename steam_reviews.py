@@ -7,6 +7,7 @@ import csv
 import sys
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Iterable, List, Optional
 
 import requests
@@ -21,6 +22,15 @@ DEFAULT_REQUEST_PARAMS = {
     "purchase_type": "all",
     "num_per_page": 100,
 }
+
+
+def _safe_int(value: object) -> Optional[int]:
+    try:
+        if value in (None, ""):
+            return None
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
 
 
 @dataclass
@@ -39,38 +49,63 @@ class Review:
     steam_purchase: bool
     received_for_free: bool
     written_during_early_access: bool
+    author_playtime_at_review: Optional[int] = None
+    author_playtime_forever: Optional[int] = None
 
     @classmethod
     def from_api(cls, data: dict) -> "Review":
+        author = data.get("author") or {}
         return cls(
             review_id=str(data.get("recommendationid", "")),
-            language=data.get("language", ""),
-            review_text=data.get("review", ""),
-            timestamp_created=int(data.get("timestamp_created", 0)),
-            timestamp_updated=int(data.get("timestamp_updated", 0)),
+            language=str(data.get("language", "")),
+            review_text=str(data.get("review", "")),
+            timestamp_created=_safe_int(data.get("timestamp_created")) or 0,
+            timestamp_updated=_safe_int(data.get("timestamp_updated")) or 0,
             voted_up=bool(data.get("voted_up", False)),
-            votes_up=int(data.get("votes_up", 0)),
-            votes_funny=int(data.get("votes_funny", 0)),
+            votes_up=_safe_int(data.get("votes_up")) or 0,
+            votes_funny=_safe_int(data.get("votes_funny")) or 0,
             weighted_vote_score=str(data.get("weighted_vote_score", "")),
             steam_purchase=bool(data.get("steam_purchase", False)),
             received_for_free=bool(data.get("received_for_free", False)),
             written_during_early_access=bool(data.get("written_during_early_access", False)),
+            author_playtime_at_review=_safe_int(author.get("playtime_at_review")),
+            author_playtime_forever=_safe_int(author.get("playtime_forever")),
         )
 
-    def to_row(self) -> List[str]:
+    def created_at_iso(self) -> str:
+        return datetime.fromtimestamp(self.timestamp_created, tz=timezone.utc).isoformat()
+
+    def playtime_hours(self) -> float:
+        minutes = self.author_playtime_at_review
+        if not minutes:
+            minutes = self.author_playtime_forever
+        if not minutes:
+            return 0.0
+        return round(minutes / 60.0, 2)
+
+    def purchase_type(self) -> str:
+        if self.received_for_free:
+            return "free"
+        if self.steam_purchase:
+            return "steam"
+        return "other"
+
+    def review_url(self, app_id: str) -> str:
+        return f"https://steamcommunity.com/app/{app_id}/review/{self.review_id}"
+
+    def to_row(self, app_id: str) -> List[str]:
         return [
             self.review_id,
-            self.language,
-            self.review_text,
-            str(self.timestamp_created),
-            str(self.timestamp_updated),
-            "1" if self.voted_up else "0",
+            app_id,
+            (self.language or "").lower(),
+            self.created_at_iso(),
+            "true" if self.voted_up else "false",
+            f"{self.playtime_hours():.2f}",
             str(self.votes_up),
             str(self.votes_funny),
-            self.weighted_vote_score,
-            "1" if self.steam_purchase else "0",
-            "1" if self.received_for_free else "0",
-            "1" if self.written_during_early_access else "0",
+            self.purchase_type(),
+            self.review_url(app_id),
+            self.review_text or "",
         ]
 
 
@@ -156,27 +191,26 @@ class SteamReviewExtractor:
         return reviews, next_cursor
 
 
-def write_reviews_to_csv(reviews: Iterable[Review], output_path: str) -> None:
+def write_reviews_to_csv(reviews: Iterable[Review], output_path: str, app_id: str) -> None:
     header = [
         "review_id",
-        "language",
+        "app_id",
+        "lang",
+        "created_at",
+        "recommended",
+        "playtime_hours",
+        "helpful",
+        "funny",
+        "purchase_type",
+        "review_url",
         "review_text",
-        "timestamp_created",
-        "timestamp_updated",
-        "voted_up",
-        "votes_up",
-        "votes_funny",
-        "weighted_vote_score",
-        "steam_purchase",
-        "received_for_free",
-        "written_during_early_access",
     ]
 
     with open(output_path, "w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(header)
         for review in reviews:
-            writer.writerow(review.to_row())
+            writer.writerow(review.to_row(app_id))
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -240,7 +274,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"Failed to fetch reviews: {exc}", file=sys.stderr)
         return 1
 
-    write_reviews_to_csv(reviews, args.output)
+    write_reviews_to_csv(reviews, args.output, args.app_id)
     print(f"Fetched {len(reviews)} reviews for app {args.app_id}.")
     print(f"Saved to {args.output}")
     return 0
