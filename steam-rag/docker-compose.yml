@@ -1,15 +1,15 @@
 
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
+
     container_name: steam_rag_db
     restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=steam_rag
-
-
 
     ports:
       - "5432:5432"
