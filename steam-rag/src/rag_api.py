@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+
 from typing import List, Optional
 
 try:  # pragma: no cover - fallback for offline tests
@@ -16,7 +17,9 @@ try:  # pragma: no cover - offline fallback
 except ModuleNotFoundError:  # pragma: no cover
     from ._openai_stub import OpenAI
 try:  # pragma: no cover - offline fallback
+
     from pydantic import BaseModel, field_validator
+
 except ModuleNotFoundError:  # pragma: no cover
     class BaseModel:  # type: ignore
         def __init__(self, **data):
@@ -31,11 +34,13 @@ except ModuleNotFoundError:  # pragma: no cover
         def model_dump(self):
             return self.__dict__.copy()
 
+
     def field_validator(*args, **kwargs):  # type: ignore
         def decorator(func):
             return func
 
         return decorator
+
 
 from .config import get_settings
 from .db import Database
@@ -55,6 +60,7 @@ if settings.cors_allow_origins:
         CORSMiddleware,
         allow_origins=settings.cors_allow_origins,
         allow_credentials=allow_credentials,
+
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -84,6 +90,7 @@ class SearchRequest(BaseModel):
     topics: List[str] | None = None
     sentiments: List[str] | None = None
 
+
     @field_validator("date_start", "date_end", mode="before")
     @classmethod
     def _coerce_dates(cls, value):
@@ -99,6 +106,7 @@ class SearchRequest(BaseModel):
         if isinstance(value, list):
             return value
         return [value]
+
 
 
 class SearchResponse(BaseModel):
@@ -130,6 +138,7 @@ class AskRequest(BaseModel):
         if isinstance(value, list):
             return value
         return [value]
+
 
 
 class AskResponse(BaseModel):
@@ -177,7 +186,10 @@ def _unwrap_query(value):
 
 
 @app.post("/search", response_model=SearchResponse)
+
 def search_reviews(request: SearchRequest, db: Database = Depends(get_db)):
+
+
     hits = semantic_search(
         query=request.query,
         app_id=request.app_id,
@@ -224,6 +236,7 @@ def _generate_answer(query: str, snippets: list[dict], date_range: tuple[datetim
 
 @app.post("/ask", response_model=AskResponse)
 def ask_reviews(request: AskRequest, db: Database = Depends(get_db)):
+
     hits = semantic_search(
         query=request.query,
         app_id=request.app_id,
@@ -252,7 +265,9 @@ def counts_endpoint(
     date_end: datetime | None = Query(default=None),
     min_helpful: int = Query(default=0),
     group_by: str | None = Query(default=None, pattern="^(month)?$"),
+
     db: Database = Depends(get_db),
+
 ):
     topic = _unwrap_query(topic)
     date_start = _unwrap_query(date_start)
