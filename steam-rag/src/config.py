@@ -18,6 +18,15 @@ except ModuleNotFoundError:  # pragma: no cover
 load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
 
 
+
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+
 @dataclass
 class Settings:
     openai_api_key: str
@@ -30,8 +39,15 @@ class Settings:
 
 def _parse_origins(raw: str | None) -> List[str]:
     if not raw:
-        return []
-    return [item.strip() for item in raw.split(",") if item.strip()]
+
+        return DEFAULT_CORS_ORIGINS.copy()
+    items = [item.strip() for item in raw.split(",") if item.strip()]
+    if not items:
+        return DEFAULT_CORS_ORIGINS.copy()
+    if "*" in items:
+        return ["*"]
+    return items
+
 
 
 @lru_cache(maxsize=1)

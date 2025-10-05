@@ -17,7 +17,9 @@ try:  # pragma: no cover - offline fallback
 except ModuleNotFoundError:  # pragma: no cover
     from ._openai_stub import OpenAI
 try:  # pragma: no cover - offline fallback
-    from pydantic import BaseModel
+
+    from pydantic import BaseModel, field_validator
+
 except ModuleNotFoundError:  # pragma: no cover
     class BaseModel:  # type: ignore
         def __init__(self, **data):
@@ -32,6 +34,14 @@ except ModuleNotFoundError:  # pragma: no cover
         def model_dump(self):
             return self.__dict__.copy()
 
+
+    def field_validator(*args, **kwargs):  # type: ignore
+        def decorator(func):
+            return func
+
+        return decorator
+
+
 from .config import get_settings
 from .db import Database
 from .prompts import build_rag_messages
@@ -45,9 +55,12 @@ db_instance = Database()
 app = FastAPI(default_response_class=ORJSONResponse, title="Steam RAG API", version="1.0.0")
 
 if settings.cors_allow_origins:
+    allow_credentials = "*" not in settings.cors_allow_origins
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_allow_origins,
+        allow_credentials=allow_credentials,
+
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -78,6 +91,24 @@ class SearchRequest(BaseModel):
     sentiments: List[str] | None = None
 
 
+    @field_validator("date_start", "date_end", mode="before")
+    @classmethod
+    def _coerce_dates(cls, value):
+        if value in (None, ""):
+            return None
+        return value
+
+    @field_validator("topics", "sentiments", mode="before")
+    @classmethod
+    def _coerce_list(cls, value):
+        if value in (None, ""):
+            return None
+        if isinstance(value, list):
+            return value
+        return [value]
+
+
+
 class SearchResponse(BaseModel):
     results: List[ReviewDoc]
 
@@ -91,6 +122,23 @@ class AskRequest(BaseModel):
     rerank: bool = False
     topics: List[str] | None = None
     sentiments: List[str] | None = None
+
+    @field_validator("date_start", "date_end", mode="before")
+    @classmethod
+    def _coerce_dates(cls, value):
+        if value in (None, ""):
+            return None
+        return value
+
+    @field_validator("topics", "sentiments", mode="before")
+    @classmethod
+    def _coerce_list(cls, value):
+        if value in (None, ""):
+            return None
+        if isinstance(value, list):
+            return value
+        return [value]
+
 
 
 class AskResponse(BaseModel):
@@ -140,7 +188,6 @@ def _unwrap_query(value):
 @app.post("/search", response_model=SearchResponse)
 
 def search_reviews(request: SearchRequest, db: Database = Depends(get_db)):
-
 
 
     hits = semantic_search(
